@@ -1,4 +1,4 @@
-public static interface Sendable {
+public interface Sendable {
     String getFrom();
     String getTo();
 }

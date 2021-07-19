@@ -1,7 +1,7 @@
 /*
 Посылка, содержимое которой можно получить с помощью метода `getContent`
 */
-public static class MailPackage extends AbstractSendable {
+public class MailPackage extends AbstractSendable {
 
     private final Package content;
 

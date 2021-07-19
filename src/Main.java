@@ -1,6 +1,18 @@
-public class Main {
-    public static void main(String[] args) {
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
+public class Main {
+
+    public static final String AUSTIN_POWERS = "Austin Powers";
+    public static final String WEAPONS = "weapons";
+    public static final String BANNED_SUBSTANCE = "banned substance";
+
+    public static void main(String[] args) {
+        System.out.println("Старт обрабокти почты!");
+        MailMessage mailMessage1 = new MailMessage("me", "you", "TEST");
+        MailService spy = new Spy(Logger.getLogger(MailService.class.getName()));
+        //MailService spy = new Spy();
+        spy.processMail(mailMessage1);
     }
 
     /*
@@ -47,9 +59,62 @@ public class Main {
         с уровнем WARN: Detected target mail correspondence: from {from} to {to} "{message}"
         2.2) Иначе, необходимо написать в лог сообщение с уровнем INFO: Usual correspondence: from {from} to {to}
      */
-    public static class Spy implements MailService {
 
+    public static class Spy implements MailService {
+        Logger LOGGER;
+        String from = null;
+        String to = null;
+        String message = null;
+
+
+        public Spy(Logger LOGGER) {
+            this.LOGGER = LOGGER;
+        }
+
+        @Override
+        public Sendable processMail(Sendable mail) {
+            if (mail instanceof MailMessage) {
+                message = ((MailMessage) mail).getMessage();
+                if (((from = (mail.getFrom())) == AUSTIN_POWERS) | ((to = (mail.getTo())) == AUSTIN_POWERS)) {
+                    LOGGER.log(Level.WARNING, "Detected target mail correspondence: from {0} to {1} \" {2}\"",
+                            new Object[]{from, to, message});
+
+                } else {
+                    LOGGER.log(Level.INFO, "Usual correspondence: from {0} to {1}",
+                            new Object[]{from, to});
+                }
+            }
+            return mail;
+        }
     }
 
+    /*
+    Thief – вор, который ворует самые ценные посылки и игнорирует все остальное.
+    Вор принимает в конструкторе переменную int – минимальную стоимость посылки, которую он будет воровать.
+    Также, в данном классе должен присутствовать метод getStolenValue, который возвращает суммарную стоимость
+    всех посылок, которые он своровал. Воровство происходит следующим образом: вместо посылки, которая пришла вору,
+    он отдает новую, такую же, только с нулевой ценностью и содержимым посылки "stones instead of {content}".
+     */
+    public static class Thief implements MailService {
+
+        @Override
+        public Sendable processMail(Sendable mail) {
+            return null;
+        }
+    }
+  /*
+  Inspector – Инспектор, который следит за запрещенными и украденными посылками и бьет тревогу в виде исключения,
+  если была обнаружена подобная посылка. Если он заметил запрещенную посылку с одним из запрещенных содержимым
+  ("weapons" и "banned substance"), то он бросает IllegalPackageException. Если он находит посылку,
+  состоящую из камней (содержит слово "stones"), то тревога прозвучит в виде StolenPackageException.
+  Оба исключения вы должны объявить самостоятельно в виде непроверяемых исключений.
+   */
+    public static class Insprctor implements MailService {
+
+        @Override
+      public Sendable processMail(Sendable mail) {
+          return null;
+      }
+  }
 
 }
