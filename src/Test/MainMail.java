@@ -1,7 +1,8 @@
+package Test;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Main {
+public class MainMail {
 
     public static final String AUSTIN_POWERS = "Austin Powers";
     public static final String WEAPONS = "weapons";
@@ -9,11 +10,32 @@ public class Main {
 
     public static void main(String[] args) {
         System.out.println("Старт обрабокти почты!");
-        MailMessage mailMessage1 = new MailMessage("me", "you", "TEST");
+        MailMessage mailMessage1 = new MailMessage(AUSTIN_POWERS, "you", "TEST");
         MailService spy = new Spy(Logger.getLogger(MailService.class.getName()));
-        //MailService spy = new Spy();
         spy.processMail(mailMessage1);
+
+        MailService thief = new Thief(100);
+        MailPackage mailPackage = new MailPackage("meT", "youT", new Package("RAKETA", 100));
+        thief.processMail(mailPackage);
+        MailPackage mailPackage1 = new MailPackage("meT", "youT", new Package("RAKETA", 1000));
+        thief.processMail(mailPackage1);
+
+
     }
+
+    public static class Test implements MailService{
+        int price;
+
+        public Test(int price) {
+            this.price = price;
+        }
+
+        @Override
+        public Sendable processMail(Sendable mail) {
+            return null;
+        }
+    }
+
 
     /*
 Интерфейс, который задает класс, который может каким-либо образом обработать почтовый объект.
@@ -76,7 +98,7 @@ public class Main {
             if (mail instanceof MailMessage) {
                 message = ((MailMessage) mail).getMessage();
                 if (((from = (mail.getFrom())) == AUSTIN_POWERS) | ((to = (mail.getTo())) == AUSTIN_POWERS)) {
-                    LOGGER.log(Level.WARNING, "Detected target mail correspondence: from {0} to {1} \" {2}\"",
+                    LOGGER.log(Level.WARNING, "Detected target mail correspondence: from {0} to {1} \"{2}\"",
                             new Object[]{from, to, message});
 
                 } else {
@@ -96,10 +118,22 @@ public class Main {
     он отдает новую, такую же, только с нулевой ценностью и содержимым посылки "stones instead of {content}".
      */
     public static class Thief implements MailService {
+        int price;
+        int priceTotal;
+
+        public Thief(int price) {
+            this.price = price;
+        }
 
         @Override
         public Sendable processMail(Sendable mail) {
-            return null;
+            MailPackage mailPackage =(MailPackage) mail;
+            Package mPackage =mailPackage.getContent();
+            if (mPackage.getPrice() >= price) {
+                priceTotal+=mPackage.getPrice();
+                return new MailPackage(mail.getFrom(), mailPackage.getTo(), new Package(String.format("stones instead of {%s}", mPackage.getContent()), 0));
+            }
+            return mail;
         }
     }
   /*
@@ -109,7 +143,7 @@ public class Main {
   состоящую из камней (содержит слово "stones"), то тревога прозвучит в виде StolenPackageException.
   Оба исключения вы должны объявить самостоятельно в виде непроверяемых исключений.
    */
-    public static class Insprctor implements MailService {
+    public static class Insperctor implements MailService {
 
         @Override
       public Sendable processMail(Sendable mail) {
