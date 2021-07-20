@@ -2,6 +2,7 @@ package Test;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+
 public class MainMail {
 
     public static final String AUSTIN_POWERS = "Austin Powers";
@@ -10,33 +11,21 @@ public class MainMail {
 
     public static void main(String[] args) {
         System.out.println("Старт обрабокти почты!");
+
         MailMessage mailMessage1 = new MailMessage(AUSTIN_POWERS, "you", "TEST");
         MailService spy = new Spy(Logger.getLogger(MailService.class.getName()));
-        spy.processMail(mailMessage1);
-
         MailService thief = new Thief(100);
+        MailService inspector = new Inspector();
+
+        MailService untrustworthyMailWorker = new UntrustworthyMailWorker(new MailService[]{spy, thief, inspector});
+
+
         MailPackage mailPackage = new MailPackage("meT", "youT", new Package("RAKETA", 100));
-        thief.processMail(mailPackage);
+
         MailPackage mailPackage1 = new MailPackage("meT", "youT", new Package("RAKETA", 1000));
-        thief.processMail(mailPackage1);
-
-
+        untrustworthyMailWorker.processMail(mailMessage1);
+        untrustworthyMailWorker.processMail(mailPackage1);
     }
-
-    public static class Test implements MailService{
-        int price;
-
-        public Test(int price) {
-            this.price = price;
-        }
-
-        @Override
-        public Sendable processMail(Sendable mail) {
-            return null;
-        }
-    }
-
-
     /*
 Интерфейс, который задает класс, который может каким-либо образом обработать почтовый объект.
 */
@@ -55,32 +44,39 @@ public class MainMail {
             return mail;
         }
     }
+
     /*
-    UntrustworthyMailWorker – класс, моделирующий ненадежного работника почты, который вместо того, чтобы передать
-    почтовый объект непосредственно в сервис почты, последовательно передает этот объект набору третьих лиц, а затем,
-    в конце концов, передает получившийся объект непосредственно экземпляру RealMailService.
-    У UntrustworthyMailWorker должен быть конструктор от массива MailService (результат вызова processMail первого
-    элемента массива передается на вход processMail второго элемента, и т. д.) и метод getRealMailService,
-    который возвращает ссылку на внутренний экземпляр RealMailService, он не приходит масивом в конструкторе и
-    не настраивается извне класса.
+    UntrustworthyMailWorker – класс, моделирующий ненадежного работника почты, который вместо того,
+    чтобы передать почтовый объект непосредственно в сервис почты, последовательно передает этот
+    объект набору третьих лиц, а затем, в конце концов, передает получившийся объект непосредственно
+    экземпляру RealMailService. У UntrustworthyMailWorker должен быть конструктор от массива MailService
+    (результат вызова processMail первого элемента массива передается на вход processMail второго элемента, и т. д.)
+    и метод getRealMailService, который возвращает ссылку на внутренний экземпляр RealMailService,
+    он не приходит масивом в конструкторе и не настраивается извне класса.
      */
     public static class UntrustworthyMailWorker implements MailService {
+        MailService[] mailServices;
+        Sendable mailProcessing;
+        RealMailService realMailService = new RealMailService();
+
+        public UntrustworthyMailWorker(MailService[] mailServices) {
+            this.mailServices = mailServices;
+        }
 
         @Override
         public Sendable processMail(Sendable mail) {
-            return null;
+            mailProcessing = mail;
+            for (int i = 0; i < mailServices.length; i++) {
+                mailProcessing = mailServices[i].processMail(mailProcessing);
+            }
+            mailProcessing = realMailService.processMail(mailProcessing);
+            return mailProcessing;
+        }
+
+        public RealMailService getRealMailService() {
+            return realMailService;
         }
     }
-
-    /*
-    Spy - шпион, который логгирует о всей почтовой переписке, которая проходит через его руки.
-    Объект конструируется от экземпляра Logger, с помощью которого шпион будет сообщать о всех действиях.
-    Он следит только за объектами класса MailMessage и пишет в логгер следующие сообщения (в выражениях нужно
-    заменить части в фигурных скобках на значения полей почты):
-        2.1) Если в качестве отправителя или получателя указан "Austin Powers", то нужно написать в лог сообщение
-        с уровнем WARN: Detected target mail correspondence: from {from} to {to} "{message}"
-        2.2) Иначе, необходимо написать в лог сообщение с уровнем INFO: Usual correspondence: from {from} to {to}
-     */
 
     public static class Spy implements MailService {
         Logger LOGGER;
@@ -110,16 +106,9 @@ public class MainMail {
         }
     }
 
-    /*
-    Thief – вор, который ворует самые ценные посылки и игнорирует все остальное.
-    Вор принимает в конструкторе переменную int – минимальную стоимость посылки, которую он будет воровать.
-    Также, в данном классе должен присутствовать метод getStolenValue, который возвращает суммарную стоимость
-    всех посылок, которые он своровал. Воровство происходит следующим образом: вместо посылки, которая пришла вору,
-    он отдает новую, такую же, только с нулевой ценностью и содержимым посылки "stones instead of {content}".
-     */
     public static class Thief implements MailService {
         int price;
-        int priceTotal;
+        int stolenValue;
 
         public Thief(int price) {
             this.price = price;
@@ -127,28 +116,55 @@ public class MainMail {
 
         @Override
         public Sendable processMail(Sendable mail) {
-            MailPackage mailPackage =(MailPackage) mail;
-            Package mPackage =mailPackage.getContent();
-            if (mPackage.getPrice() >= price) {
-                priceTotal+=mPackage.getPrice();
-                return new MailPackage(mail.getFrom(), mailPackage.getTo(), new Package(String.format("stones instead of {%s}", mPackage.getContent()), 0));
+            if (mail instanceof MailPackage) {
+                MailPackage mailPackage = (MailPackage) mail;
+                Package mPackage = mailPackage.getContent();
+                if (mPackage.getPrice() >= price) {
+                    stolenValue += mPackage.getPrice();
+                    return new MailPackage(mail.getFrom(), mailPackage.getTo(), new Package(String.format("stones instead of %s", mPackage.getContent()), 0));
+                }
             }
             return mail;
         }
+
+        public int getStolenValue() {
+            return stolenValue;
+        }
     }
-  /*
-  Inspector – Инспектор, который следит за запрещенными и украденными посылками и бьет тревогу в виде исключения,
-  если была обнаружена подобная посылка. Если он заметил запрещенную посылку с одним из запрещенных содержимым
-  ("weapons" и "banned substance"), то он бросает IllegalPackageException. Если он находит посылку,
-  состоящую из камней (содержит слово "stones"), то тревога прозвучит в виде StolenPackageException.
-  Оба исключения вы должны объявить самостоятельно в виде непроверяемых исключений.
-   */
-    public static class Insperctor implements MailService {
+
+    public static class Inspector implements MailService {
 
         @Override
-      public Sendable processMail(Sendable mail) {
-          return null;
-      }
-  }
+        public Sendable processMail(Sendable mail) {
+            if (mail instanceof MailPackage) {
+                MailPackage mailPackage = (MailPackage) mail;
+                Package aPackage = mailPackage.getContent();
+                try {
+                    if (aPackage.getContent().contains("stones")) {
+                        throw new StolenPackageException("stones");
+                    } else if ((aPackage.getContent().contains(WEAPONS)) | aPackage.getContent().contains(BANNED_SUBSTANCE)) {
+                        throw new IllegalPackageException("prohibited");
+                    }
+
+                } catch (Exception e) {
+                    throw e;
+                }
+            }
+
+            return mail;
+        }
+    }
+
+    public static class IllegalPackageException extends RuntimeException {
+        public IllegalPackageException(String message) {
+            super(message);
+        }
+    }
+
+    public static class StolenPackageException extends RuntimeException {
+        public StolenPackageException(String message) {
+            super(message);
+        }
+    }
 
 }
